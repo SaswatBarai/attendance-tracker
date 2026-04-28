@@ -1,4 +1,4 @@
-import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from './auth.js';
+import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from './auth';
 
 const BASE_URL = process.env['NEXT_PUBLIC_API_BASE_URL'] ?? 'http://localhost:3001';
 

@@ -5,6 +5,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { Role } from '@attendance-tracker/shared-types';
 import { userApiClient } from '@/lib/api-client';
 import { CreateCohortModal } from '@/components/super-admin/CreateCohortModal';
+import { EditCohortModal } from '@/components/super-admin/EditCohortModal';
 import Link from 'next/link';
 
 interface Cohort {
@@ -21,6 +22,7 @@ function CohortsContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [editingCohort, setEditingCohort] = useState<Cohort | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -98,7 +100,7 @@ function CohortsContent() {
         {cohorts.map((c) => (
           <div
             key={c.id}
-            className="bg-white rounded-2xl p-5 border border-[#E5E7EB] flex items-center gap-4 hover:border-[#FF6B00]/40 transition"
+            className="bg-white rounded-2xl p-5 border border-[#E5E7EB] flex flex-col sm:flex-row sm:items-center gap-4 hover:border-[#FF6B00]/40 transition"
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
@@ -127,13 +129,19 @@ function CohortsContent() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               <Link
                 href={`/super-admin/cohorts/${c.id}`}
                 className="px-3 py-1.5 rounded-lg border border-[#D1D5DB] text-xs font-medium text-[#374151] hover:bg-[#F9FAFB] transition"
               >
                 View
               </Link>
+              <button
+                onClick={() => setEditingCohort(c)}
+                className="px-3 py-1.5 rounded-lg border border-[#D1D5DB] text-xs font-medium text-[#374151] hover:bg-[#F9FAFB] transition"
+              >
+                Edit
+              </button>
               <button
                 onClick={() => toggleStatus(c.id)}
                 className="px-3 py-1.5 rounded-lg border border-[#D1D5DB] text-xs font-medium text-[#374151] hover:bg-[#F9FAFB] transition"
@@ -156,6 +164,17 @@ function CohortsContent() {
           onClose={() => setShowCreate(false)}
           onCreated={() => {
             setShowCreate(false);
+            load();
+          }}
+        />
+      )}
+
+      {editingCohort && (
+        <EditCohortModal
+          cohort={editingCohort}
+          onClose={() => setEditingCohort(null)}
+          onUpdated={() => {
+            setEditingCohort(null);
             load();
           }}
         />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { userApiClient } from '@/lib/api-client';
 
 interface Props {
@@ -12,23 +12,64 @@ interface Props {
 
 type Tab = 'create' | 'assign';
 
+interface AssignableUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  adminProfile: null | {
+    cohort: {
+      id: string;
+      name: string;
+    };
+  };
+}
+
 export function AssignAdminModal({ cohortId, cohortName, onClose, onAssigned }: Props) {
   const [tab, setTab] = useState<Tab>('create');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // create new admin fields
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // assign existing admin fields
   const [userId, setUserId] = useState('');
+  const [search, setSearch] = useState('');
+  const [users, setUsers] = useState<AssignableUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  useEffect(() => {
+    if (tab !== 'assign') return;
+
+    const timeoutId = window.setTimeout(async () => {
+      setUsersLoading(true);
+      setError('');
+
+      try {
+        const query = search ? `?search=${encodeURIComponent(search)}` : '';
+        const response = await userApiClient.get<{ success: boolean; data: AssignableUser[] }>(
+          `/api/admins/assignable-users${query}`
+        );
+        setUsers(response.data);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load users');
+      } finally {
+        setUsersLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [search, tab]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError('');
+
     try {
       await userApiClient.post('/api/admins', { name, email, password, cohortId });
       onAssigned();
@@ -43,6 +84,7 @@ export function AssignAdminModal({ cohortId, cohortName, onClose, onAssigned }: 
     e.preventDefault();
     setLoading(true);
     setError('');
+
     try {
       await userApiClient.post('/api/admins/assign', { userId, cohortId });
       onAssigned();
@@ -55,7 +97,7 @@ export function AssignAdminModal({ cohortId, cohortName, onClose, onAssigned }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-lg font-semibold text-[#121212]">Assign Admin</h2>
@@ -65,25 +107,25 @@ export function AssignAdminModal({ cohortId, cohortName, onClose, onAssigned }: 
             onClick={onClose}
             className="text-[#9CA3AF] hover:text-[#121212] text-xl leading-none"
           >
-            ×
+            X
           </button>
         </div>
 
         <div className="flex gap-1 bg-[#F3F4F6] rounded-xl p-1 mb-5">
-          {(['create', 'assign'] as Tab[]).map((t) => (
+          {(['create', 'assign'] as Tab[]).map((currentTab) => (
             <button
-              key={t}
+              key={currentTab}
               onClick={() => {
-                setTab(t);
+                setTab(currentTab);
                 setError('');
               }}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
-                tab === t
+                tab === currentTab
                   ? 'bg-white text-[#121212] shadow-sm'
                   : 'text-[#6B7280] hover:text-[#121212]'
               }`}
             >
-              {t === 'create' ? 'Create New Admin' : 'Assign Existing'}
+              {currentTab === 'create' ? 'Create New Admin' : 'Assign Existing'}
             </button>
           ))}
         </div>
@@ -132,24 +174,77 @@ export function AssignAdminModal({ cohortId, cohortName, onClose, onAssigned }: 
                 disabled={loading}
                 className="flex-1 px-4 py-2.5 rounded-xl bg-[#FF6B00] text-white text-sm font-semibold hover:bg-[#E55F00] transition disabled:opacity-50"
               >
-                {loading ? 'Creating…' : 'Create & Assign'}
+                {loading ? 'Creating...' : 'Create & Assign'}
               </button>
             </div>
           </form>
         ) : (
           <form onSubmit={handleAssign} className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-[#374151] mb-1">User ID</label>
+              <label className="block text-sm font-medium text-[#374151] mb-1">Find User</label>
               <input
                 type="text"
-                placeholder="Paste existing user UUID"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                required
+                placeholder="Search by name or email"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-[#D1D5DB] text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/50 focus:border-[#FF6B00] transition"
               />
-              <p className="text-[#9CA3AF] text-xs mt-1">The user will be promoted to ADMIN role</p>
+              <p className="text-[#9CA3AF] text-xs mt-1">
+                Pick an existing user to promote or reassign as cohort admin
+              </p>
             </div>
+
+            <div className="rounded-xl border border-[#E5E7EB] overflow-hidden">
+              <div className="max-h-56 overflow-y-auto divide-y divide-[#F3F4F6] bg-[#FCFCFC]">
+                {usersLoading && (
+                  <div className="px-4 py-6 text-sm text-[#6B7280]">Loading users...</div>
+                )}
+
+                {!usersLoading && users.length === 0 && (
+                  <div className="px-4 py-6 text-sm text-[#6B7280]">No matching users found.</div>
+                )}
+
+                {!usersLoading &&
+                  users.map((user) => {
+                    const selected = userId === user.id;
+
+                    return (
+                      <button
+                        key={user.id}
+                        type="button"
+                        onClick={() => setUserId(user.id)}
+                        className={`w-full px-4 py-3 text-left transition ${
+                          selected ? 'bg-[#FFF3EC]' : 'hover:bg-white'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-[#121212] truncate">
+                              {user.name}
+                            </p>
+                            <p className="text-xs text-[#6B7280] truncate">{user.email}</p>
+                          </div>
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                              selected
+                                ? 'bg-[#FF6B00] text-white'
+                                : 'bg-[#F3F4F6] text-[#6B7280]'
+                            }`}
+                          >
+                            {selected ? 'Selected' : user.role}
+                          </span>
+                        </div>
+                        {user.adminProfile && (
+                          <p className="mt-1 text-[11px] text-[#9CA3AF]">
+                            Currently assigned to {user.adminProfile.cohort.name}
+                          </p>
+                        )}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
             {error && (
               <p className="text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2">{error}</p>
             )}
@@ -163,10 +258,10 @@ export function AssignAdminModal({ cohortId, cohortName, onClose, onAssigned }: 
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !userId}
                 className="flex-1 px-4 py-2.5 rounded-xl bg-[#FF6B00] text-white text-sm font-semibold hover:bg-[#E55F00] transition disabled:opacity-50"
               >
-                {loading ? 'Assigning…' : 'Assign Admin'}
+                {loading ? 'Assigning...' : 'Assign Admin'}
               </button>
             </div>
           </form>

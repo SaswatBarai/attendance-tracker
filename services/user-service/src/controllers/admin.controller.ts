@@ -16,6 +16,45 @@ const assignAdminSchema = z.object({
   cohortId: z.string().uuid('Invalid cohort ID'),
 });
 
+export async function listAssignableUsers(req: Request, res: Response): Promise<void> {
+  const search = String(req.query['search'] ?? '').trim();
+
+  const users = await prisma.user.findMany({
+    where: {
+      role: { not: Role.SUPER_ADMIN as unknown as 'SUPER_ADMIN' },
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      isActive: true,
+      adminProfile: {
+        select: {
+          cohort: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  });
+
+  res.json({ success: true, data: users });
+}
+
 export async function listAdmins(_req: Request, res: Response): Promise<void> {
   const admins = await prisma.admin.findMany({
     include: {

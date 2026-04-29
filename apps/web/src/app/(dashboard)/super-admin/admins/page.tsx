@@ -70,53 +70,55 @@ function AdminsContent() {
 
       {admins.length > 0 && (
         <div className="bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[#E5E7EB] bg-[#FAFAFA]">
-                <th className="text-left px-6 py-3 text-xs font-medium text-[#6B7280] uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-[#6B7280] uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-[#6B7280] uppercase tracking-wider">
-                  Cohort
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-[#6B7280] uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#F3F4F6]">
-              {admins.map((a) => (
-                <tr key={a.id} className="hover:bg-[#FAFAFA]">
-                  <td className="px-6 py-3.5 text-sm font-medium text-[#121212]">{a.user.name}</td>
-                  <td className="px-6 py-3.5 text-sm text-[#6B7280]">{a.user.email}</td>
-                  <td className="px-6 py-3.5">
-                    <span className="px-2.5 py-1 rounded-lg bg-[#FFF3EC] text-[#FF6B00] text-xs font-medium">
-                      {a.cohort.name}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3.5">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.user.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
-                    >
-                      {a.user.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3.5 text-right">
-                    <button
-                      onClick={() => removeAdmin(a.userId, a.user.name)}
-                      className="text-xs text-red-500 hover:text-red-700 transition font-medium"
-                    >
-                      Remove
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
+              <thead>
+                <tr className="border-b border-[#E5E7EB] bg-[#FAFAFA]">
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[#6B7280] uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[#6B7280] uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[#6B7280] uppercase tracking-wider">
+                    Cohort
+                  </th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[#6B7280] uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[#F3F4F6]">
+                {admins.map((a) => (
+                  <tr key={a.id} className="hover:bg-[#FAFAFA]">
+                    <td className="px-6 py-3.5 text-sm font-medium text-[#121212]">{a.user.name}</td>
+                    <td className="px-6 py-3.5 text-sm text-[#6B7280]">{a.user.email}</td>
+                    <td className="px-6 py-3.5">
+                      <span className="px-2.5 py-1 rounded-lg bg-[#FFF3EC] text-[#FF6B00] text-xs font-medium">
+                        {a.cohort.name}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3.5">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.user.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+                      >
+                        {a.user.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3.5 text-right">
+                      <button
+                        onClick={() => removeAdmin(a.userId, a.user.name)}
+                        className="text-xs text-red-500 hover:text-red-700 transition font-medium"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

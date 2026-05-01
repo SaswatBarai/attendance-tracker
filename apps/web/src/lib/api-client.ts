@@ -2,6 +2,7 @@ import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from './auth
 
 const AUTH_URL = process.env['NEXT_PUBLIC_AUTH_SERVICE_URL'] ?? 'http://localhost:3001';
 const USER_URL = process.env['NEXT_PUBLIC_USER_SERVICE_URL'] ?? 'http://localhost:3002';
+const SCHEDULE_URL = process.env['NEXT_PUBLIC_SCHEDULE_SERVICE_URL'] ?? 'http://localhost:3004';
 
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken();
@@ -71,3 +72,4 @@ function makeClient(baseUrl: string) {
 
 export const apiClient = makeClient(AUTH_URL);
 export const userApiClient = makeClient(USER_URL);
+export const scheduleApiClient = makeClient(SCHEDULE_URL);

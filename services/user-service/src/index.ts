@@ -8,6 +8,9 @@ import { healthRouter } from './routes/health.routes.js';
 import { cohortRouter } from './routes/cohort.routes.js';
 import { adminRouter } from './routes/admin.routes.js';
 import { statsRouter } from './routes/stats.routes.js';
+import { studentRouter } from './routes/student.routes.js';
+import { batchRouter } from './routes/batch.routes.js';
+import { mentorRouter } from './routes/mentor.routes.js';
 
 const app = express();
 const PORT = SERVICE_PORTS.USER;
@@ -22,6 +25,9 @@ app.use('/health', healthRouter);
 app.use('/api/cohorts', cohortRouter);
 app.use('/api/admins', adminRouter);
 app.use('/api/stats', statsRouter);
+app.use('/api/students', studentRouter);
+app.use('/api/batches', batchRouter);
+app.use('/api/mentors', mentorRouter);
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err.stack);

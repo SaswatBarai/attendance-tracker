@@ -7,6 +7,8 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { SERVICE_PORTS, APP_VERSION } from '@attendance-tracker/config';
 import { healthRouter } from './routes/health.routes.js';
+import { attendanceCodeRouter } from './routes/attendance-code.routes.js';
+import { registerCodeRefreshHandler } from './websocket/code-refresh.handler.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -23,13 +25,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 app.use('/health', healthRouter);
+app.use('/api/attendance-codes', attendanceCodeRouter);
 
-io.on('connection', (socket) => {
-  console.info(`[attendance-service] socket connected: ${socket.id}`);
-  socket.on('disconnect', () => {
-    console.info(`[attendance-service] socket disconnected: ${socket.id}`);
-  });
-});
+registerCodeRefreshHandler(io);
 
 app.use(
   (

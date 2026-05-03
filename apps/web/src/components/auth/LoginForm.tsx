@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import type { Route } from 'next';
 import { useAuth } from '@/hooks/useAuth';
 import { Role } from '@attendance-tracker/shared-types';
 
-const ROLE_REDIRECT: Record<Role, string> = {
+const ROLE_REDIRECT: Record<Role, Route> = {
   [Role.SUPER_ADMIN]: '/super-admin',
   [Role.ADMIN]: '/admin',
   [Role.MENTOR]: '/mentor',

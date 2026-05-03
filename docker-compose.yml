@@ -97,6 +97,7 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-attendance_tracker}
       AUTH_SERVICE_URL: http://auth-service:3001
+      JWT_SECRET: ${JWT_SECRET}
       REDIS_URL: redis://redis:6379
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     ports:
@@ -169,6 +170,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001}
+      NEXT_PUBLIC_ATTENDANCE_SERVICE_URL: ${NEXT_PUBLIC_ATTENDANCE_SERVICE_URL:-http://localhost:3003}
     ports:
       - "3000:3000"
     depends_on:

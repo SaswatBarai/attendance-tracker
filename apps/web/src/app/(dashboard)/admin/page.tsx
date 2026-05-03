@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import type { Route } from 'next';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { userApiClient } from '@/lib/api-client';
 import { Role } from '@attendance-tracker/shared-types';
@@ -18,7 +19,7 @@ interface StatCardProps {
   label: string;
   value: number | string;
   icon: string;
-  href: string;
+  href: Route;
   color: string;
 }
 

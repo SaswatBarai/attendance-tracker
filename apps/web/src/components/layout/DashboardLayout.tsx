@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import type { Route } from 'next';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import type { Role } from '@attendance-tracker/shared-types';
@@ -59,7 +60,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         {navItems.map((item) => (
           <Link
             key={item.href}
-            href={item.href}
+            href={item.href as Route}
             onClick={() => setMenuOpen(false)}
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors text-sm"
           >

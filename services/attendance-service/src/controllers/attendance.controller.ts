@@ -24,6 +24,42 @@ function handleError(err: unknown, res: Response): void {
   res.status(statusCode).json({ success: false, error: message });
 }
 
+export async function getMyAttendanceHistory(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.sub;
+
+  try {
+    const student = await prisma.student.findUnique({ where: { userId } });
+    if (!student) {
+      res.status(404).json({ success: false, error: 'Student profile not found' });
+      return;
+    }
+
+    const records = await prisma.attendance.findMany({
+      where: { studentId: student.id },
+      include: {
+        schedule: {
+          include: {
+            batch: { select: { id: true, name: true } },
+            mentor: { select: { user: { select: { name: true } } } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const total = records.length;
+    const present = records.filter((r) => r.status === AttendanceStatus.PRESENT).length;
+    const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+
+    res.json({
+      success: true,
+      data: { records, stats: { total, present, absent: total - present, percentage } },
+    });
+  } catch (err) {
+    handleError(err, res);
+  }
+}
+
 export async function markAttendance(req: Request, res: Response): Promise<void> {
   const parsed = markSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -83,7 +119,7 @@ export async function markAttendance(req: Request, res: Response): Promise<void>
 }
 
 export async function getScheduleAttendance(req: Request, res: Response): Promise<void> {
-  const { scheduleId } = req.params;
+  const scheduleId = req.params['scheduleId'] as string | undefined;
 
   if (!scheduleId) {
     res.status(400).json({ success: false, error: 'Schedule ID is required' });
@@ -110,7 +146,7 @@ export async function getScheduleAttendance(req: Request, res: Response): Promis
 }
 
 export async function updateAttendanceStatus(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = req.params['id'] as string | undefined;
 
   if (!id) {
     res.status(400).json({ success: false, error: 'Attendance ID is required' });

@@ -2,28 +2,27 @@
 FROM node:24-alpine AS base
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
+RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 
 # ── Install dependencies ──────────────────────────────────────────────────────
 FROM base AS deps
-COPY package.json package-lock.json* ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/shared-types/package.json ./packages/shared-types/
 COPY packages/config/package.json ./packages/config/
 COPY packages/utils/package.json ./packages/utils/
 COPY apps/web/package.json ./apps/web/
-RUN npm ci --workspace=packages/shared-types \
-           --workspace=packages/config \
-           --workspace=packages/utils \
-           --workspace=apps/web
+RUN pnpm install --frozen-lockfile --filter "./apps/web..."
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 FROM deps AS builder
 ENV NEXT_TELEMETRY_DISABLED=1
+COPY tsconfig.base.json ./
 COPY packages/ ./packages/
 COPY apps/web/ ./apps/web/
-RUN npm run build --workspace=packages/shared-types && \
-    npm run build --workspace=packages/config && \
-    npm run build --workspace=packages/utils && \
-    npm run build --workspace=apps/web
+RUN pnpm --filter @attendance-tracker/shared-types run build && \
+    pnpm --filter @attendance-tracker/config run build && \
+    pnpm --filter @attendance-tracker/utils run build && \
+    pnpm --filter @attendance-tracker/web run build
 
 # ── Production image ──────────────────────────────────────────────────────────
 FROM base AS runner

@@ -6,12 +6,14 @@ import {
   getMentor,
   createMentor,
   removeMentor,
+  getMyMentorProfile,
 } from '../controllers/mentor.controller.js';
 
 export const mentorRouter = Router();
 
 mentorRouter.use(authenticate);
 
+mentorRouter.get('/me', getMyMentorProfile);
 mentorRouter.get('/', requireAdmin, listMentors);
 mentorRouter.get('/:id', requireAdmin, getMentor);
 mentorRouter.post('/', requireAdmin, createMentor);

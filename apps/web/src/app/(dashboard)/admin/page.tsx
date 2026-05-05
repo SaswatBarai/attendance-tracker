@@ -111,6 +111,28 @@ export default function AdminDashboardPage() {
             </p>
             <p className="text-xs text-[#FF6B00] font-medium mt-3">View batches →</p>
           </Link>
+
+          <Link
+            href={'/admin/reports' as Route}
+            className="bg-white rounded-2xl border border-[#E5E7EB] p-5 hover:shadow-sm transition-shadow"
+          >
+            <h2 className="font-semibold text-[#121212] mb-1">Reports & Analytics</h2>
+            <p className="text-sm text-[#6B7280]">
+              Batch-wise attendance rates, student performance rankings, and CSV export.
+            </p>
+            <p className="text-xs text-[#FF6B00] font-medium mt-3">View reports →</p>
+          </Link>
+
+          <Link
+            href="/admin/schedules"
+            className="bg-white rounded-2xl border border-[#E5E7EB] p-5 hover:shadow-sm transition-shadow"
+          >
+            <h2 className="font-semibold text-[#121212] mb-1">Schedule Management</h2>
+            <p className="text-sm text-[#6B7280]">
+              Create weekly timetables, assign mentors to periods, and manage eligibility.
+            </p>
+            <p className="text-xs text-[#FF6B00] font-medium mt-3">View schedules →</p>
+          </Link>
         </div>
       </div>
     </ProtectedRoute>

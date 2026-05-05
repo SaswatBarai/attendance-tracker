@@ -15,6 +15,25 @@ function param(req: Request, key: string): string {
   return req.params[key] as string;
 }
 
+export async function getMyMentorProfile(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.sub;
+
+  const mentor = await prisma.mentor.findUnique({
+    where: { userId },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      cohort: { select: { id: true, name: true } },
+    },
+  });
+
+  if (!mentor) {
+    res.status(404).json({ success: false, error: 'Mentor profile not found' });
+    return;
+  }
+
+  res.json({ success: true, data: mentor });
+}
+
 export async function listMentors(_req: Request, res: Response): Promise<void> {
   const mentors = await prisma.mentor.findMany({
     include: {

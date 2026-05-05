@@ -9,6 +9,7 @@ import { SERVICE_PORTS, APP_VERSION } from '@attendance-tracker/config';
 import { healthRouter } from './routes/health.routes.js';
 import { attendanceCodeRouter } from './routes/attendance-code.routes.js';
 import { attendanceRouter } from './routes/attendance.routes.js';
+import { reportsRouter } from './routes/reports.routes.js';
 import { registerCodeRefreshHandler } from './websocket/code-refresh.handler.js';
 
 const app = express();
@@ -28,6 +29,7 @@ app.use(morgan('dev'));
 app.use('/health', healthRouter);
 app.use('/api/attendance-codes', attendanceCodeRouter);
 app.use('/api/attendance', attendanceRouter);
+app.use('/api/reports', reportsRouter);
 
 registerCodeRefreshHandler(io);
 

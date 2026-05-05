@@ -4,40 +4,58 @@ ARG SERVICE_NAME
 FROM node:24-alpine AS base
 WORKDIR /app
 RUN apk add --no-cache libc6-compat curl
+RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 
-# ── Install dependencies ──────────────────────────────────────────────────────
+# ── Install all dependencies (needed for build + prisma generate) ─────────────
 FROM base AS deps
-COPY package.json package-lock.json* ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/shared-types/package.json ./packages/shared-types/
 COPY packages/config/package.json ./packages/config/
 COPY packages/utils/package.json ./packages/utils/
+COPY services/auth-service/package.json ./services/auth-service/
 ARG SERVICE_NAME
 COPY services/${SERVICE_NAME}/package.json ./services/${SERVICE_NAME}/
-RUN npm ci --workspace=packages/shared-types \
-           --workspace=packages/config \
-           --workspace=packages/utils \
-           --workspace=services/${SERVICE_NAME}
+RUN pnpm install --frozen-lockfile --ignore-scripts \
+    --filter "./services/${SERVICE_NAME}..." \
+    --filter "./services/auth-service..."
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 FROM deps AS builder
+COPY tsconfig.base.json ./
 COPY packages/ ./packages/
 ARG SERVICE_NAME
+COPY services/auth-service/prisma/ ./services/auth-service/prisma/
 COPY services/${SERVICE_NAME}/ ./services/${SERVICE_NAME}/
-RUN npm run build --workspace=packages/shared-types && \
-    npm run build --workspace=packages/config && \
-    npm run build --workspace=packages/utils && \
-    npm run build --workspace=services/${SERVICE_NAME}
+RUN pnpm --filter @attendance-tracker/shared-types run build && \
+    pnpm --filter @attendance-tracker/config run build && \
+    pnpm --filter @attendance-tracker/utils run build && \
+    npx prisma generate --schema=services/auth-service/prisma/schema.prisma && \
+    pnpm --filter "./services/${SERVICE_NAME}" run build
 
 # ── Production image ──────────────────────────────────────────────────────────
-FROM base AS runner
+# Re-use the full builder node_modules (already has generated prisma client)
+# but only ship the compiled dist + runtime deps.
+FROM node:24-alpine AS runner
+WORKDIR /app
+RUN apk add --no-cache libc6-compat curl
 ENV NODE_ENV=production
 ARG SERVICE_NAME
 ENV SERVICE_NAME=${SERVICE_NAME}
 
+# pnpm stores all packages in node_modules/.pnpm; each workspace has its own
+# node_modules with symlinks into .pnpm. Copy all of them.
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/shared-types/node_modules ./packages/shared-types/node_modules
+COPY --from=builder /app/packages/shared-types/package.json ./packages/shared-types/package.json
 COPY --from=builder /app/packages/shared-types/dist ./packages/shared-types/dist
+COPY --from=builder /app/packages/config/node_modules ./packages/config/node_modules
+COPY --from=builder /app/packages/config/package.json ./packages/config/package.json
 COPY --from=builder /app/packages/config/dist ./packages/config/dist
+COPY --from=builder /app/packages/utils/node_modules ./packages/utils/node_modules
+COPY --from=builder /app/packages/utils/package.json ./packages/utils/package.json
 COPY --from=builder /app/packages/utils/dist ./packages/utils/dist
+COPY --from=builder /app/services/${SERVICE_NAME}/node_modules ./services/${SERVICE_NAME}/node_modules
+COPY --from=builder /app/services/${SERVICE_NAME}/package.json ./services/${SERVICE_NAME}/package.json
 COPY --from=builder /app/services/${SERVICE_NAME}/dist ./services/${SERVICE_NAME}/dist
-COPY --from=deps /app/node_modules ./node_modules
 
 CMD node services/${SERVICE_NAME}/dist/index.js

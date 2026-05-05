@@ -227,6 +227,59 @@ export async function getMentorSchedule(req: Request, res: Response): Promise<vo
   res.json({ success: true, data: schedules });
 }
 
+export async function getMyStudentSchedule(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.sub;
+  const dayOfWeek = req.query['dayOfWeek'] as string | undefined;
+
+  const student = await prisma.student.findUnique({ where: { userId } });
+  if (!student) {
+    res.status(404).json({ success: false, error: 'Student profile not found' });
+    return;
+  }
+
+  if (!student.batchId) {
+    res.json({ success: true, data: [] });
+    return;
+  }
+
+  const schedules = await prisma.schedule.findMany({
+    where: {
+      batchId: student.batchId,
+      ...(dayOfWeek ? { dayOfWeek: dayOfWeek as 'MONDAY' } : {}),
+      OR: [
+        { shift: student.shift as 'MORNING' },
+        ...(student.shift === 'MORNING' ? [{ shift: 'AFTERNOON' as const }] : []),
+      ],
+    },
+    orderBy: [{ dayOfWeek: 'asc' }, { period: 'asc' }],
+    include: scheduleInclude,
+  });
+
+  res.json({ success: true, data: schedules, student });
+}
+
+export async function getMyMentorSchedule(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.sub;
+  const dayOfWeek = req.query['dayOfWeek'] as string | undefined;
+
+  const mentor = await prisma.mentor.findUnique({ where: { userId } });
+  if (!mentor) {
+    res.status(404).json({ success: false, error: 'Mentor profile not found' });
+    return;
+  }
+
+  const schedules = await prisma.schedule.findMany({
+    where: {
+      mentorId: mentor.id,
+      ...(dayOfWeek ? { dayOfWeek: dayOfWeek as 'MONDAY' } : {}),
+    },
+    orderBy: [{ dayOfWeek: 'asc' }, { period: 'asc' }],
+    include: scheduleInclude,
+  });
+
+  res.json({ success: true, data: schedules });
+}
+
 export async function checkEligibility(req: Request, res: Response): Promise<void> {
   const { studentId, scheduleId } = req.body as { studentId?: string; scheduleId?: string };
   if (!studentId || !scheduleId) {

@@ -9,6 +9,8 @@ import {
   deleteSchedule,
   getStudentSchedule,
   getMentorSchedule,
+  getMyStudentSchedule,
+  getMyMentorSchedule,
   checkEligibility,
 } from '../controllers/schedule.controller.js';
 
@@ -16,6 +18,8 @@ export const scheduleRouter = Router();
 
 scheduleRouter.use(authenticate);
 
+scheduleRouter.get('/my/student', getMyStudentSchedule);
+scheduleRouter.get('/my/mentor', getMyMentorSchedule);
 scheduleRouter.get('/', requireMentor, listSchedules);
 scheduleRouter.get('/student/:studentId', requireMentor, getStudentSchedule);
 scheduleRouter.get('/mentor/:mentorId', requireMentor, getMentorSchedule);

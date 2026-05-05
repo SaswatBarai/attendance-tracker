@@ -40,6 +40,26 @@ function param(req: Request, key: string): string {
   return req.params[key] as string;
 }
 
+export async function getMyProfile(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.sub;
+
+  const student = await prisma.student.findUnique({
+    where: { userId },
+    include: {
+      user: { select: { id: true, name: true, email: true, isActive: true } },
+      cohort: { select: { id: true, name: true } },
+      batch: { select: { id: true, name: true } },
+    },
+  });
+
+  if (!student) {
+    res.status(404).json({ success: false, error: 'Student profile not found' });
+    return;
+  }
+
+  res.json({ success: true, data: student });
+}
+
 export async function listStudents(req: Request, res: Response): Promise<void> {
   const cohortId = req.query['cohortId'] as string | undefined;
   const batchId = req.query['batchId'] as string | undefined;

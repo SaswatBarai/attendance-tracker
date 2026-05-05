@@ -22,3 +22,4 @@ export function requireRole(...roles: Role[]) {
 
 export const requireStudent = requireRole(Role.STUDENT);
 export const requireMentor = requireRole(Role.SUPER_ADMIN, Role.ADMIN, Role.MENTOR);
+export const requireAdmin = requireRole(Role.SUPER_ADMIN, Role.ADMIN);

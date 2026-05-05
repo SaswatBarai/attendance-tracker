@@ -5,12 +5,14 @@ import {
   getScheduleAttendance,
   markAttendance,
   updateAttendanceStatus,
+  getMyAttendanceHistory,
 } from '../controllers/attendance.controller.js';
 
 export const attendanceRouter = Router();
 
 attendanceRouter.use(authenticate);
 
+attendanceRouter.get('/my/history', getMyAttendanceHistory);
 attendanceRouter.post('/mark', requireMentor, markAttendance);
 attendanceRouter.get('/schedule/:scheduleId', requireMentor, getScheduleAttendance);
 attendanceRouter.put('/:id/status', requireMentor, updateAttendanceStatus);

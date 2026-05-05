@@ -8,12 +8,14 @@ import {
   bulkCreateStudents,
   updateStudent,
   deleteStudent,
+  getMyProfile,
 } from '../controllers/student.controller.js';
 
 export const studentRouter = Router();
 
 studentRouter.use(authenticate);
 
+studentRouter.get('/me', getMyProfile);
 studentRouter.get('/', requireAdmin, listStudents);
 studentRouter.get('/:id', requireAdmin, getStudent);
 studentRouter.post('/', requireAdmin, createStudent);

@@ -19,7 +19,10 @@ export default function CSVUploadPage() {
   const [cohortId, setCohortId] = useState('');
   const [students, setStudents] = useState<ParsedStudent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ created: number } | null>(null);
+  const [result, setResult] = useState<{
+    created: number;
+    batchSummary: Record<string, number>;
+  } | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -41,11 +44,13 @@ export default function CSVUploadPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await userApiClient.post<{ success: boolean; data: { created: number } }>(
-        '/api/students/bulk',
-        { cohortId, students }
+      const res = await userApiClient.post<{
+        success: boolean;
+        data: { created: number; batchSummary: Record<string, number>; students: unknown[] };
+      }>('/api/students/bulk', { cohortId, students });
+      setResult(
+        res.data ? { created: res.data.created, batchSummary: res.data.batchSummary } : null
       );
-      setResult(res.data ?? null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -67,6 +72,26 @@ export default function CSVUploadPage() {
               Welcome@&lt;regno&gt;
             </code>
           </p>
+
+          {/* Batch allocation summary */}
+          {Object.keys(result.batchSummary).length > 0 && (
+            <div className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 text-left space-y-2">
+              <p className="text-xs font-semibold text-[#374151] uppercase tracking-wider">
+                Batch Allocation
+              </p>
+              <div className="divide-y divide-[#E5E7EB]">
+                {Object.entries(result.batchSummary).map(([batchName, count]) => (
+                  <div key={batchName} className="flex items-center justify-between py-1.5">
+                    <span className="text-sm text-[#374151]">{batchName}</span>
+                    <span className="text-sm font-medium text-[#121212]">
+                      {count} student{count !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-center gap-3 pt-2">
             <button
               onClick={() => {

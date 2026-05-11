@@ -146,41 +146,47 @@ export async function createStudent(req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const hashedPassword = await bcrypt.hash(`Welcome@${regno}`, 12);
-  const finalBatchId =
-    batchId ?? (await autoAllocateBatch(cohortId, shift as 'MORNING' | 'AFTERNOON'));
+  try {
+    const hashedPassword = await bcrypt.hash(`Welcome@${regno}`, 12);
+    // batchId from request body takes precedence; otherwise auto-allocate
+    const finalBatchId =
+      batchId ?? (await autoAllocateBatch(cohortId, shift as 'MORNING' | 'AFTERNOON'));
 
-  const user = await prisma.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-      name,
-      role: Role.STUDENT as unknown as 'STUDENT',
-      studentProfile: {
-        create: {
-          regno,
-          shift: shift as 'MORNING' | 'AFTERNOON',
-          cohortId,
-          ...(finalBatchId ? { batchId: finalBatchId } : {}),
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name,
+        role: Role.STUDENT as unknown as 'STUDENT',
+        studentProfile: {
+          create: {
+            regno,
+            shift: shift as 'MORNING' | 'AFTERNOON',
+            cohortId,
+            batchId: finalBatchId,
+          },
         },
       },
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      createdAt: true,
-      studentProfile: {
-        include: {
-          cohort: { select: { id: true, name: true } },
-          batch: { select: { id: true, name: true } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        studentProfile: {
+          include: {
+            cohort: { select: { id: true, name: true } },
+            batch: { select: { id: true, name: true } },
+          },
         },
       },
-    },
-  });
+    });
 
-  res.status(201).json({ success: true, data: user });
+    res.status(201).json({ success: true, data: user });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to create student';
+    res.status(500).json({ success: false, error: message });
+  }
 }
 
 export async function bulkCreateStudents(req: Request, res: Response): Promise<void> {
@@ -192,75 +198,134 @@ export async function bulkCreateStudents(req: Request, res: Response): Promise<v
 
   const { cohortId, students } = parsed.data;
 
-  const cohort = await prisma.cohort.findUnique({ where: { id: cohortId } });
-  if (!cohort) {
-    res.status(404).json({ success: false, error: 'Cohort not found' });
-    return;
-  }
+  try {
+    // ── Validate cohort exists ────────────────────────────────────────────────
+    const cohort = await prisma.cohort.findUnique({ where: { id: cohortId } });
+    if (!cohort) {
+      res.status(404).json({ success: false, error: 'Cohort not found' });
+      return;
+    }
 
-  const regnos = students.map((s) => s.regno);
-  const emails = students.map((s) => s.email);
+    // ── Validate batches exist BEFORE processing any students ─────────────────
+    const batchCount = await prisma.batch.count({ where: { cohortId } });
+    if (batchCount === 0) {
+      res.status(400).json({
+        success: false,
+        error:
+          `Cohort "${cohort.name}" has no batches. ` +
+          'Please create at least one batch before uploading students.',
+      });
+      return;
+    }
 
-  if (new Set(regnos).size !== regnos.length) {
-    res.status(400).json({ success: false, error: 'Duplicate registration numbers in upload' });
-    return;
-  }
+    // ── Duplicate checks ──────────────────────────────────────────────────────
+    const regnos = students.map((s) => s.regno);
+    const emails = students.map((s) => s.email);
 
-  const [existingUsers, existingStudents] = await Promise.all([
-    prisma.user.findMany({ where: { email: { in: emails } }, select: { email: true } }),
-    prisma.student.findMany({ where: { regno: { in: regnos } }, select: { regno: true } }),
-  ]);
+    if (new Set(regnos).size !== regnos.length) {
+      res.status(400).json({ success: false, error: 'Duplicate registration numbers in upload' });
+      return;
+    }
 
-  const errors: string[] = [];
-  if (existingUsers.length > 0) {
-    errors.push(`Emails already in use: ${existingUsers.map((u) => u.email).join(', ')}`);
-  }
-  if (existingStudents.length > 0) {
-    errors.push(`Regnos already exist: ${existingStudents.map((s) => s.regno).join(', ')}`);
-  }
-  if (errors.length > 0) {
-    res.status(409).json({ success: false, error: errors.join('; ') });
-    return;
-  }
+    const [existingUsers, existingStudents] = await Promise.all([
+      prisma.user.findMany({ where: { email: { in: emails } }, select: { email: true } }),
+      prisma.student.findMany({ where: { regno: { in: regnos } }, select: { regno: true } }),
+    ]);
 
-  const created: unknown[] = [];
-  for (const s of students) {
-    const hashedPassword = await bcrypt.hash(`Welcome@${s.regno}`, 12);
-    const batchId = await autoAllocateBatch(cohortId, s.shift as 'MORNING' | 'AFTERNOON');
+    const conflictErrors: string[] = [];
+    if (existingUsers.length > 0) {
+      conflictErrors.push(`Emails already in use: ${existingUsers.map((u) => u.email).join(', ')}`);
+    }
+    if (existingStudents.length > 0) {
+      conflictErrors.push(
+        `Registration numbers already exist: ${existingStudents.map((s) => s.regno).join(', ')}`
+      );
+    }
+    if (conflictErrors.length > 0) {
+      res.status(409).json({ success: false, error: conflictErrors.join('; ') });
+      return;
+    }
 
-    const user = await prisma.user.create({
-      data: {
-        email: s.email,
-        password: hashedPassword,
-        name: s.name,
-        role: Role.STUDENT as unknown as 'STUDENT',
+    // ── Pre-resolve batch IDs (outside tx to avoid long-held locks) ───────────
+    const studentBatchMap: Map<string, string> = new Map();
+    for (const s of students) {
+      const batchId = await autoAllocateBatch(cohortId, s.shift as 'MORNING' | 'AFTERNOON');
+      studentBatchMap.set(s.regno, batchId);
+    }
+
+    // ── Atomic bulk creation inside a transaction ─────────────────────────────
+    const created = await prisma.$transaction(async (tx) => {
+      const results: Array<{
+        id: string;
+        name: string;
+        email: string;
         studentProfile: {
-          create: {
-            regno: s.regno,
-            shift: s.shift as 'MORNING' | 'AFTERNOON',
-            cohortId,
-            ...(batchId ? { batchId } : {}),
+          id: string;
+          regno: string;
+          shift: string;
+          batch: { id: string; name: string } | null;
+        } | null;
+      }> = [];
+
+      for (const s of students) {
+        const hashedPassword = await bcrypt.hash(`Welcome@${s.regno}`, 12);
+        const batchId = studentBatchMap.get(s.regno)!;
+
+        const user = await tx.user.create({
+          data: {
+            email: s.email,
+            password: hashedPassword,
+            name: s.name,
+            role: Role.STUDENT as unknown as 'STUDENT',
+            studentProfile: {
+              create: {
+                regno: s.regno,
+                shift: s.shift as 'MORNING' | 'AFTERNOON',
+                cohortId,
+                batchId,
+              },
+            },
           },
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        studentProfile: {
           select: {
             id: true,
-            regno: true,
-            shift: true,
-            batch: { select: { id: true, name: true } },
+            name: true,
+            email: true,
+            studentProfile: {
+              select: {
+                id: true,
+                regno: true,
+                shift: true,
+                batch: { select: { id: true, name: true } },
+              },
+            },
           },
-        },
+        });
+        results.push(user);
+      }
+      return results;
+    });
+
+    // ── Build batch allocation summary ────────────────────────────────────────
+    const batchSummary: Record<string, number> = {};
+    for (const u of created) {
+      const batchName = u.studentProfile?.batch?.name ?? 'Unassigned';
+      batchSummary[batchName] = (batchSummary[batchName] ?? 0) + 1;
+    }
+
+    res.status(201).json({
+      success: true,
+      data: {
+        created: created.length,
+        batchSummary,
+        students: created,
       },
     });
-    created.push(user);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Bulk student creation failed';
+    // Surface validation errors (e.g. from autoAllocateBatch) as 400, runtime errors as 500
+    const status = message.includes('No batches') ? 400 : 500;
+    res.status(status).json({ success: false, error: message });
   }
-
-  res.status(201).json({ success: true, data: { created: created.length, students: created } });
 }
 
 export async function updateStudent(req: Request, res: Response): Promise<void> {
